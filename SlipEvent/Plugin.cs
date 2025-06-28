@@ -19,7 +19,7 @@ namespace SlipEvent
     [BepInPlugin(PluginInfo.PLUGIN_GUID, PluginInfo.PLUGIN_NAME, PluginInfo.PLUGIN_VERSION)]
     [BepInDependency("com.mosadie.mocore", BepInDependency.DependencyFlags.HardDependency)]
     [BepInProcess("Slipstream_Win.exe")]
-    public class Plugin : BaseUnityPlugin, MoPlugin
+    public class Plugin : BaseUnityPlugin, IMoPlugin
     {
         private static ConfigEntry<bool> httpRequestEnabled;
         private static ConfigEntry<string> httpRequestUrl;
@@ -111,7 +111,7 @@ namespace SlipEvent
 
                 Application.quitting += ApplicationQuitting;
 
-                sendEvent(EventType.GameLaunch, []);
+                SendEvent(EventType.GameLaunch, []);
             }
             catch (Exception e)
             {
@@ -143,9 +143,9 @@ namespace SlipEvent
             CrewmateSwapped,
         }
 
-        private static bool blockEvent(EventType eventType)
+        private static bool BlockEvent(EventType eventType)
         {
-            Log.LogInfo($"Checking captaincy required for event {eventType} isCaptain:{getIsCaptain()}");
+            Log.LogInfo($"Checking captaincy required for event {eventType} isCaptain:{GetIsCaptain()}");
             try
             {
                 if (!captaincyRequiredConfigs.ContainsKey(eventType)) // Only if captaincy does not matter (Ex not on a ship)
@@ -156,11 +156,11 @@ namespace SlipEvent
 
                 if (captaincyRequiredConfigs[eventType].Value == CaptaincyRequiredConfigValue.Inherit)
                 {
-                    return defaultCaptaincyRequired.Value && !getIsCaptain();
+                    return defaultCaptaincyRequired.Value && !GetIsCaptain();
                 }
                 else if (captaincyRequiredConfigs[eventType].Value == CaptaincyRequiredConfigValue.Required)
                 {
-                    return !getIsCaptain();
+                    return !GetIsCaptain();
                 }
                 else if (captaincyRequiredConfigs[eventType].Value == CaptaincyRequiredConfigValue.NotRequired)
                 {
@@ -178,7 +178,7 @@ namespace SlipEvent
             }
         }
 
-        private static void sendEvent(EventType eventType, Dictionary<string, string> data)
+        private static void SendEvent(EventType eventType, Dictionary<string, string> data)
         {
             // Make an POST HTTP request to http://<streamerbotIp>:<streamerbotPort>
             // with the following data:
@@ -193,7 +193,7 @@ namespace SlipEvent
             // }
 
             // Check if the event is blocked
-            if (blockEvent(eventType))
+            if (BlockEvent(eventType))
             {
                 Log.LogInfo($"Event {eventType} is blocked. Skipping.");
                 return;
@@ -215,16 +215,16 @@ namespace SlipEvent
 
             if (streamerBotEnabled.Value)
             {
-                sendEventToStreamerBot(eventType.ToString(), data);
+                SendEventToStreamerBot(eventType.ToString(), data);
             }
 
             if (httpRequestEnabled.Value)
             {
-                sendEventToHttp(eventType.ToString(), data);
+                SendEventToHttp(eventType.ToString(), data);
             }
         }
 
-        private static void sendEventToStreamerBot(String eventType, Dictionary<string, string> data)
+        private static void SendEventToStreamerBot(string eventType, Dictionary<string, string> data)
         {
             try
             {
@@ -249,7 +249,7 @@ namespace SlipEvent
             }
         }
 
-        private static void sendEventToHttp(String eventType, Dictionary<string, string> data)
+        private static void SendEventToHttp(string eventType, Dictionary<string, string> data)
         {
             try
             {
@@ -270,7 +270,7 @@ namespace SlipEvent
         {
             try
             {
-                sendEvent(EventType.JoinShip, []);
+                SendEvent(EventType.JoinShip, []);
             }
             catch (Exception ex)
             {
@@ -295,7 +295,7 @@ namespace SlipEvent
                     //    break;
 
                     case OrderType.KnockedOut:
-                        sendEvent(EventType.KnockedOut, new Dictionary<string, string>
+                        SendEvent(EventType.KnockedOut, new Dictionary<string, string>
                         {
                             { "message", e.Order.Message }
                         });
@@ -311,12 +311,12 @@ namespace SlipEvent
                             SlipClient senderClient = mpSvc.Clients.GetClientByClientId(e.Order.SenderClientId);
                             if (senderClient != null && senderClient.Player != null)
                             {
-                                senderDisplayName = senderClient.Player.DisplayName != null ? senderClient.Player.DisplayName : "Unknown";
-                                senderProfileImage = senderClient.Player.ProfileImage != null ? senderClient.Player.ProfileImage : null;
+                                senderDisplayName = senderClient.Player.DisplayName ?? "Unknown";
+                                senderProfileImage = senderClient.Player.ProfileImage ?? null;
                                 senderIsCaptain = mpSvc.Captains.CaptainClient != null && mpSvc.Captains.CaptainClient.ClientId.Equals(senderClient.ClientId);
                             }
                         }
-                        sendEvent(EventType.CustomOrder, new Dictionary<string, string>
+                        SendEvent(EventType.CustomOrder, new Dictionary<string, string>
                         {
                             { "message", e.Order.Message },
                             { "senderDisplayName", senderDisplayName },
@@ -352,7 +352,7 @@ namespace SlipEvent
         {
             try
             {
-                sendEvent(EventType.GameExit, []);
+                SendEvent(EventType.GameExit, []);
             }
             catch (Exception ex)
             {
@@ -371,14 +371,17 @@ namespace SlipEvent
                 }
 
 
-                sendEvent(EventType.StartFight, new Dictionary<string, string>
+                SendEvent(EventType.StartFight, new Dictionary<string, string>
                 {
                     { "enemy", e.Scenario.Battle.Metadata.EnemyName },
                     { "invaders", e.Scenario.Battle.Metadata.InvaderDescription },
                     { "intel", e.Scenario.Battle.Metadata.IntelDescription },
                     { "threatLevel", e.Scenario.Battle.Metadata.ThreatLevel.ToString() },
                     { "speedLevel", e.Scenario.Battle.Metadata.SpeedLevel.ToString() },
-                    { "cargoLevel", e.Scenario.Battle.Metadata.CargoLevel.ToString() }
+                    { "cargoLevel", e.Scenario.Battle.Metadata.CargoLevel.ToString() },
+                    { "medbaySpeed", e.Scenario.Stations.Medbay.HealRate.ToString() }, //FIXME: Add formatting string after determining range, likely round to int but not 100% sure
+                    { "shieldSpeed", e.Scenario.Stations.Shield.ChargeRate.ToString() }, //FIXME: Add formatting string
+                    { "repairSpeed", e.Scenario.Stations.Weapon.RepairRate.ToString() }, //FIXME: Add formatting string
                 });
             }
             catch (Exception ex)
@@ -391,7 +394,7 @@ namespace SlipEvent
         {
             try
             {
-                sendEvent(EventType.EndFight, new Dictionary<string, string>
+                SendEvent(EventType.EndFight, new Dictionary<string, string>
                 {
                     { "outcome", e.Outcome.ToString() }
                 });
@@ -406,7 +409,7 @@ namespace SlipEvent
         {
             try
             {
-                sendEvent(EventType.RunStarted, new Dictionary<string, string>
+                SendEvent(EventType.RunStarted, new Dictionary<string, string>
                 {
                     { "campaign", e.Campaign.CampaignId.ToString() },
                     { "region", e.Campaign.CaptainCampaign.RegionVo.Metadata.Name }
@@ -422,7 +425,7 @@ namespace SlipEvent
         {
             try
             {
-                sendEvent(EventType.RunStarted, new Dictionary<string, string>
+                SendEvent(EventType.RunStarted, new Dictionary<string, string>
                 {
                     { "campaign", e.Result.Campaign.CampaignId.ToString() },
                     { "region", e.Result.Campaign.RegionVo.Metadata.Name }
@@ -440,11 +443,11 @@ namespace SlipEvent
             {
                 if (e.Victory)
                 {
-                    sendEvent(EventType.RunSucceeded, []);
+                    SendEvent(EventType.RunSucceeded, []);
                 }
                 else
                 {
-                    sendEvent(EventType.RunFailed, []);
+                    SendEvent(EventType.RunFailed, []);
                 }
             } catch (Exception ex)
             {
@@ -456,7 +459,7 @@ namespace SlipEvent
         {
             try
             {
-                sendEvent(EventType.NextSector, new Dictionary<string, string>
+                SendEvent(EventType.NextSector, new Dictionary<string, string>
                 {
                     { "sectorIndex", e.Campaign.CurrentSectorIndex.ToString() },
                     { "sectorName", e.Campaign.CurrentSectorVo.Definition.Name }
@@ -486,7 +489,7 @@ namespace SlipEvent
                 }
                 else if (scenario.Encounter != null)
                 {
-                    sendEvent(EventType.ChoiceAvailable, new Dictionary<string, string>
+                    SendEvent(EventType.ChoiceAvailable, new Dictionary<string, string>
                     {
                         { "isBacktrack", e.IsBacktrack.ToString() },
                         { "scenarioKey",  e.CampaignVo.CurrentNodeVo.ScenarioKey},
@@ -518,10 +521,10 @@ namespace SlipEvent
                         data.Add($"inventory{i}_price", scenario.Outpost.Inventory[i].PricePerUnit.ToString());
                         data.Add($"inventory{i}_subtype", scenario.Outpost.Inventory[i].SubType.ToString());
                     }
-                    sendEvent(EventType.ShopEntered, data);
+                    SendEvent(EventType.ShopEntered, data);
                 }
 
-                sendEvent(EventType.NodeChange, new Dictionary<string, string>
+                SendEvent(EventType.NodeChange, new Dictionary<string, string>
                 {
                     { "isBacktrack", e.IsBacktrack.ToString() },
                     { "scenarioKey",  e.CampaignVo.CurrentNodeVo.ScenarioKey},
@@ -540,12 +543,14 @@ namespace SlipEvent
             try
             {
                 string name = e.Crewmate.Client != null ? e.Crewmate.Client.Player.DisplayName : "Crew";
+                string playerId = e.Crewmate.Client != null ? e.Crewmate.Client.Player.SlipUserDbId : "UnknownId";
 
 
-                sendEvent(EventType.CrewmateCreated, new Dictionary<string, string>
+                SendEvent(EventType.CrewmateCreated, new Dictionary<string, string>
                 {
                     { "name", name },
                     { "id", e.Crewmate.CrewmateId.ToString() },
+                    { "playerId", playerId },
                     { "level", e.CrewmateVo.Progression.Level.ToString() },
                     { "xp", e.CrewmateVo.Progression.TotalXp.ToString() },
                     { "archetype", e.CrewmateVo.ArchetypeId },
@@ -569,7 +574,7 @@ namespace SlipEvent
             {
                 string name = e.Crewmate.Client != null ? e.Crewmate.Client.Player.DisplayName : "Crew";
 
-                sendEvent(EventType.CrewmateRemoved, new Dictionary<string, string>
+                SendEvent(EventType.CrewmateRemoved, new Dictionary<string, string>
                 {
                     { "name", name },
                     { "id", e.Crewmate.CrewmateId.ToString() }
@@ -580,7 +585,7 @@ namespace SlipEvent
             }
         }
 
-        private static bool getIsCaptain()
+        private static bool GetIsCaptain()
         {
             try
             {
@@ -632,7 +637,7 @@ namespace SlipEvent
             string name = crewmateById.Client != null ? crewmateById.Client.Player.DisplayName : "Crew";
             try
             {
-                sendEvent(EventType.CrewmateSwapped, new Dictionary<string, string>
+                SendEvent(EventType.CrewmateSwapped, new Dictionary<string, string>
             {
                 { "name", name },
                 { "id", crewmateById.CrewmateId.ToString() },
@@ -661,7 +666,7 @@ namespace SlipEvent
                 if (!Mainstay<CaptainReconnectManager>.Main.Equals(null) && startResult.Campaign != null && __instance.CaptainConsoleUI != null) // These are all of the if statements that are in the original method. Silently fail if any of these are false.
                 {
                     Log.LogInfo("Relayed Campaign Started. Sending RunStarted event.");
-                    sendEvent(EventType.RunStarted, new Dictionary<string, string>
+                    SendEvent(EventType.RunStarted, new Dictionary<string, string>
                     {
                         { "campaign", startResult.Campaign.CampaignId.ToString() },
                         { "region", startResult.Campaign.RegionVo.Metadata.Name }
@@ -687,6 +692,11 @@ namespace SlipEvent
         public BaseUnityPlugin GetPluginObject()
         {
             return this;
+        }
+
+        public IMoHttpHandler GetHttpHandler()
+        {
+            return null;
         }
     }
 }
