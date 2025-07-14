@@ -573,11 +573,13 @@ namespace SlipEvent
             try
             {
                 string name = e.Crewmate.Client != null ? e.Crewmate.Client.Player.DisplayName : "Crew";
+                string playerId = e.Crewmate.Client != null ? e.Crewmate.Client.Player.SlipUserDbId : "UnknownId";
 
                 SendEvent(EventType.CrewmateRemoved, new Dictionary<string, string>
                 {
                     { "name", name },
-                    { "id", e.Crewmate.CrewmateId.ToString() }
+                    { "id", e.Crewmate.CrewmateId.ToString() },
+                    { "playerId", playerId }
                 });
             } catch (Exception ex)
             {
@@ -635,12 +637,14 @@ namespace SlipEvent
                 return;
             }
             string name = crewmateById.Client != null ? crewmateById.Client.Player.DisplayName : "Crew";
+            string playerId = crewmateById.Client != null ? crewmateById.Client.Player.SlipUserDbId : "UnknownId";
             try
             {
                 SendEvent(EventType.CrewmateSwapped, new Dictionary<string, string>
             {
                 { "name", name },
                 { "id", crewmateById.CrewmateId.ToString() },
+                { "playerId", playerId },
                 { "level", notif.Payload.NewCrewmateVo.Progression.Level.ToString() },
                 { "xp", notif.Payload.NewCrewmateVo.Progression.TotalXp.ToString() },
                 { "archetype", notif.Payload.NewCrewmateVo.ArchetypeId },
