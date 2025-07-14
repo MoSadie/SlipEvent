@@ -1,3 +1,7 @@
+## v2.0.1: MoCore 2.0
+
+Just a quick update to update the mod to use MoCore 2.0, also added playerId to some events.
+
 ## v2.0.0: Rebrand!
 
 Added the ability to do multiple outputs on an event, now can send to a http webserver as well as Streamer.bot.
