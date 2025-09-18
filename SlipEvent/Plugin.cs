@@ -54,6 +54,8 @@ namespace SlipEvent
 
         private static Dictionary<EventType, ConfigEntry<CaptaincyRequiredConfigValue>> captaincyRequiredConfigs = new Dictionary<EventType, ConfigEntry<CaptaincyRequiredConfigValue>>();
 
+        private bool isShipTechNotifSet = false;
+
         private void Awake()
         {
             try
@@ -107,6 +109,7 @@ namespace SlipEvent
                 Svc.Get<Events>().AddListener<SectorNodeChangedEvent>(SectorNodeChangedEvent, 1);
                 Svc.Get<Events>().AddListener<CrewmateCreatedEvent>(CrewmateCreatedEvent, 1);
                 Svc.Get<Events>().AddListener<CrewmateRemovedEvent>(CrewmateRemovedEvent, 1);
+                Svc.Get<Events>().AddListener<RestartRequestedEvent>(ResetFlagOnRestart, 1);
 
 
                 Application.quitting += ApplicationQuitting;
@@ -141,6 +144,7 @@ namespace SlipEvent
             CrewmateCreated,
             CrewmateRemoved,
             CrewmateSwapped,
+            ShipTechUpdated
         }
 
         private static bool BlockEvent(EventType eventType)
@@ -266,8 +270,123 @@ namespace SlipEvent
             }
         }
 
+        // Not an event, just a trigger for ShipTechUpdated event to lookup the ship tech level.
+        private void OnShipTechLevelChanged(Notification<Notifs.ShipTechLevelChanged.Payload> notif)
+        {
+            ShipTechUpdatedEvent();
+        }
+
+        // Not an event, just a trigger for ShipTechUpdated event to lookup the ship tech level.
+        private void OnShipTechApplied(Notification<Notifs.ShipTechApplied.Payload> notif)
+        {
+            ShipTechUpdatedEvent();
+        }
+
+        // Not an event, just a trigger for ShipTechUpdated event to lookup the ship tech level.
+        private void OnShipTechReset(Notification<Notifs.ShipTechReset.Payload> notif)
+        {
+            ShipTechUpdatedEvent();
+        }
+
+        private void ResetFlagOnRestart(RestartRequestedEvent e)
+        {
+            isShipTechNotifSet = false;
+        }
+
+        private void ShipTechUpdatedEvent()
+        {
+            try
+            {
+                MpSvc mpSvc = Svc.Get<MpSvc>();
+
+                if (mpSvc == null)
+                {
+                    Log.LogError("An error occurred handling ShipTechUpdatedEvent. null MpSvc.");
+                    return;
+                }
+
+                MpShipTechController shipTechController = mpSvc.ShipTech;
+
+                if (shipTechController == null)
+                {
+                    Log.LogError("An error occurred handling ShipTechUpdatedEvent. null MpShipTechController.");
+                    return;
+                }
+
+                Dictionary<string, string> data = new Dictionary<string, string>();
+                List<string> activeTechs = new List<string>();
+                List<string> allTechs = new List<string>();
+
+                if (shipTechController.AllTechs == null)
+                {
+                    Log.LogWarning("An error occurred handling ShipTechUpdatedEvent. null AllTechs. (Likely not on a ship!");
+                    // No return because we *want* to send a response
+                }
+                else
+                {
+                    foreach (AbstractShipTech tech in shipTechController.AllTechs)
+                    {
+                        if (tech == null || tech.DefVo == null)
+                            continue;
+
+                        if (tech.IsActive())
+                        {
+                            activeTechs.Add(tech.DefVo.Title);
+                        }
+
+                        allTechs.Add(tech.DefVo.Title);
+
+                        data.Add($"ssb_{tech.DefVo.Title}_isActive", tech.IsActive().ToString());
+                        data.Add($"ssb_{tech.DefVo.Title}_ShortDesc", tech.DefVo.ShortDescription);
+                        data.Add($"ssb_{tech.DefVo.Title}_LongDesc", tech.DefVo.LongDescription);
+                        data.Add($"ssb_{tech.DefVo.Title}_Level", tech.Level.ToString());
+                        data.Add($"ssb_{tech.DefVo.Title}_MaxLevel", tech.MaxLevel.ToString());
+                        data.Add($"ssb_{tech.DefVo.Title}_Color", tech.DefVo.Color);
+                        data.Add($"ssb_{tech.DefVo.Title}_Unit", tech.UnitType.ToString());
+
+                        foreach (var level in tech.DefVo.Levels)
+                        {
+                            if (level == null)
+                                continue;
+                            data.Add($"ssb_{tech.DefVo.Title}_Level_{level.Level}_Cost", level.Cost.ToString());
+                            data.Add($"ssb_{tech.DefVo.Title}_Level_{level.Level}_Value", level.Value.ToString());
+                        }
+                    }
+                }
+
+                data.Add("ssb_ActiveTechs", string.Join(",", activeTechs));
+                data.Add("ssb_AllTechs", string.Join(",", allTechs));
+
+                SendEvent(EventType.ShipTechUpdated, data);
+            }
+            catch (Exception ex)
+            {
+                Log.LogError($"Error sending ShipTechUpdatedEvent: {ex.Message}");
+            }
+        }
+
         private void ShipLoadedEvent(ShipLoadedEvent e)
         {
+            // Register ShipTechUpdated event
+            MpSvc mpSvc = Svc.Get<MpSvc>();
+            if (mpSvc == null)
+            {
+                Log.LogError("An error occurred handling ShipLoadedEvent. null MpSvc. ShipTechUpdated will not work.");
+            } else
+            {
+                if (!isShipTechNotifSet)
+                {
+                    Log.LogInfo("Registering ShipTechUpdated notifications.");
+                    mpSvc.RpcClient.Notification<Notifs.ShipTechLevelChanged.Notif>().Subscribe(new Subscription<NotifDef<Notifs.ShipTechLevelChanged.Payload>, Notifs.ShipTechLevelChanged.Payload>.Callback(OnShipTechLevelChanged));
+                    mpSvc.RpcClient.Notification<Notifs.ShipTechApplied.Notif>().Subscribe(new Subscription<NotifDef<Notifs.ShipTechApplied.Payload>, Notifs.ShipTechApplied.Payload>.Callback(OnShipTechApplied));
+                    mpSvc.RpcClient.Notification<Notifs.ShipTechReset.Notif>().Subscribe(new Subscription<NotifDef<Notifs.ShipTechReset.Payload>, Notifs.ShipTechReset.Payload>.Callback(OnShipTechReset));
+
+                    //Manually send the event, so we're up to date.
+                    //ShipTechUpdatedEvent()
+                    isShipTechNotifSet = true;
+                }
+            }
+            // Normal event
             try
             {
                 SendEvent(EventType.JoinShip, []);
