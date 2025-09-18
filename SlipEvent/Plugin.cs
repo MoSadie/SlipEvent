@@ -31,6 +31,8 @@ namespace SlipEvent
         private static ConfigEntry<string> streamerBotActionId;
         private static ConfigEntry<string> streamerBotActionName;
 
+        private static ConfigEntry<bool> debugLogging;
+
         //private static ConfigEntry<int> eventCooldown;
 
         private static ConfigEntry<bool> defaultCaptaincyRequired;
@@ -76,6 +78,7 @@ namespace SlipEvent
                 streamerBotPort = Config.Bind("StreamerBot", "Port", 7474);
                 streamerBotActionId = Config.Bind("StreamerBot", "ActionId", "da524811-ff47-4493-afe6-67f27eff234d", "Action ID to execute on game events.");
                 streamerBotActionName = Config.Bind("StreamerBot", "ActionName", "(Internal) Receive Event", "Action name to execute on game events.");
+                debugLogging = Config.Bind("Logging", "DebugLogging", false, "Enable debug logging. This will log a lot of information to the BepInEx log file.");
 
                 //eventCooldown = Config.Bind("StreamerBot", "EventCooldown", 5000, "Cooldown in ms before sending a duplicate event. (Cooldown is per event type.) Set to 0 to disable cooldown.");
 
@@ -149,7 +152,9 @@ namespace SlipEvent
 
         private static bool BlockEvent(EventType eventType)
         {
-            Log.LogInfo($"Checking captaincy required for event {eventType} isCaptain:{GetIsCaptain()}");
+            if (debugLogging.Value)
+                Log.LogInfo($"Checking captaincy required for event {eventType} isCaptain:{GetIsCaptain()}");
+
             try
             {
                 if (!captaincyRequiredConfigs.ContainsKey(eventType)) // Only if captaincy does not matter (Ex not on a ship)
@@ -244,7 +249,10 @@ namespace SlipEvent
                     args = data
                 });
 
-                Log.LogInfo($"Sending event {eventType} to StreamerBot: {streamerBotIp.Value}:{streamerBotPort.Value} with data: {dataJSON}");
+                if (debugLogging.Value)
+                {
+                    Log.LogInfo($"Sending event {eventType} to Stre▬amerBot: {streamerBotIp.Value}:{streamerBotPort.Value} with data: {dataJSON}");
+                }
                 httpClient.PostAsync($"http://{streamerBotIp.Value}:{streamerBotPort.Value}/DoAction", new StringContent(dataJSON));
             }
             catch (HttpRequestException e)
@@ -261,7 +269,10 @@ namespace SlipEvent
 
                 var dataJSON = JsonConvert.SerializeObject(data);
 
-                Log.LogInfo($"Sending event {eventType} to Http: {httpRequestUrl.Value} with data: {dataJSON}");
+                if (debugLogging.Value)
+                {
+                    Log.LogInfo($"Sending event {eventType} to Http: {httpRequestUrl.Value} with data: {dataJSON}");
+                }
                 httpClient.PostAsync(httpRequestUrl.Value, new StringContent(dataJSON));
             }
             catch (HttpRequestException e)
@@ -382,7 +393,7 @@ namespace SlipEvent
                     mpSvc.RpcClient.Notification<Notifs.ShipTechReset.Notif>().Subscribe(new Subscription<NotifDef<Notifs.ShipTechReset.Payload>, Notifs.ShipTechReset.Payload>.Callback(OnShipTechReset));
 
                     //Manually send the event, so we're up to date.
-                    //ShipTechUpdatedEvent()
+                    ShipTechUpdatedEvent();
                     isShipTechNotifSet = true;
                 }
             }
