@@ -218,3 +218,23 @@ Arguments:
 - senderDisplayName: The display name of the player who sent the message.
 - senderProfileImage: The URL for the player's profile image, or null if they do not have one.
 - senderIsCaptain: "True" if the sender is the captain, "False" otherwise.
+
+### ShipTechUpdated
+
+Sent when the ship's tech is updated. This can be either buying new tech, upgrading existing tech, resetting after a run, or joining a ship.
+
+Arguments:
+
+| Name | Description |
+| - | - |
+| `ssb_ActiveTechs` | List of the names of active techs. |
+| `ssb_AllTechs` | List of the names of all techs. |
+| `ssb_<tech name>_IsActive` | Lists if a given tech is active or not. |
+| `ssb_<tech name>_ShortDesc` | Gives a short description of the tech. |
+| `ssb_<tech name>_LongDesc` | Gives a long description of the tech. |
+| `ssb_<tech name>_Level` | Current level of the tech, 0 if not active. |
+| `ssb_<tech name>_MaxLevel` | Max level of the tech. |
+| `ssb_<tech name>_Color` | Hex color for the tech. |
+| `ssb_<tech name>_Unit` | Unit used at the end of the value, either `VALUE`, `PERCENT`, or `SECONDS`. |
+| `ssb_<tech name>_Level_<level number>_Value` | Numeric value of that level. |
+| `ssb_<tech name>_Level_<level number>_Cost` | Cost in gems of that level. |
