@@ -1,3 +1,7 @@
+## v2.0.2: Technology!
+
+Added a new event! SlipTechUpdated, whenever the ship tech is updated this will trigger with information on all ship tech, including active tech, inactive tech, and current levels.
+
 ## v2.0.1: MoCore 2.0
 
 Just a quick update to update the mod to use MoCore 2.0, also added playerId to some events.

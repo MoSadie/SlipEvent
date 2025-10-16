@@ -9,7 +9,7 @@ websiteUrl = "https://github.com/MoSadie/SlipEvent"
 containsNsfwContent = false
 [package.dependencies]
 BepInEx-BepInExPack= "5.4.2100"
-MoSadie-MoCore= "2.0.2"
+MoSadie-MoCore= "2.0.3"
 
 
 [build]
